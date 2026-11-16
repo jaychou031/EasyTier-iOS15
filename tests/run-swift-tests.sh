@@ -33,3 +33,8 @@ xcrun --sdk macosx swiftc -sdk "$SDKROOT" -target "$host_target" -swift-version 
   EasyTier/Views/DashboardView+Profiles.swift tests/ProfileSelectionTests.swift \
   -o "$test_dir/profile-tests"
 "$test_dir/profile-tests"
+xcrun --sdk macosx swiftc -sdk "$SDKROOT" -target "$host_target" -swift-version 5 -parse-as-library \
+  -I "$test_dir" -L "$test_dir" -lEasyTierShared -Xlinker -rpath -Xlinker "$test_dir" \
+  -module-cache-path "$test_dir/cache" \
+  tests/VPNPreferencesTests.swift -o "$test_dir/preferences-tests"
+"$test_dir/preferences-tests"

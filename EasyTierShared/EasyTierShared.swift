@@ -262,6 +262,45 @@ public enum TunnelManagerError: LocalizedError {
     }
 }
 
+// Explicitly bridge the completion-handler APIs. The iOS 15.5 crash report
+// shows a fault in swift_task_enqueueImpl when the SDK-imported async save
+// completion resumes. Keep the callback independent of an actor executor.
+public func saveVPNPreferences(_ manager: NEVPNManager) async throws {
+    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+        manager.saveToPreferences { error in
+            if let error {
+                continuation.resume(throwing: error)
+            } else {
+                continuation.resume(returning: ())
+            }
+        }
+    }
+}
+
+public func loadVPNManagers() async throws -> [NETunnelProviderManager] {
+    try await withCheckedThrowingContinuation { continuation in
+        NETunnelProviderManager.loadAllFromPreferences { managers, error in
+            if let error {
+                continuation.resume(throwing: error)
+            } else {
+                continuation.resume(returning: managers ?? [])
+            }
+        }
+    }
+}
+
+public func removeVPNPreferences(_ manager: NEVPNManager) async throws {
+    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+        manager.removeFromPreferences { error in
+            if let error {
+                continuation.resume(throwing: error)
+            } else {
+                continuation.resume(returning: ())
+            }
+        }
+    }
+}
+
 private func configureManagerForConnection(_ manager: NETunnelProviderManager, logger: Logger?) {
     manager.isEnabled = true
     if let defaults = UserDefaults(suiteName: APP_GROUP_ID) {
@@ -283,7 +322,7 @@ private func configureManagerForConnection(_ manager: NETunnelProviderManager, l
 
 public func connectWithManager(_ manager: NETunnelProviderManager, logger: Logger? = nil) async throws {
     configureManagerForConnection(manager, logger: logger)
-    try await manager.saveToPreferences()
+    try await saveVPNPreferences(manager)
     try manager.connection.startVPNTunnel()
 }
 

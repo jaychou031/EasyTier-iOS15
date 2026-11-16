@@ -46,7 +46,7 @@ extension EasyTierControlWidget {
         }
 
         func currentValue() async throws -> Bool {
-            let managers = try await NETunnelProviderManager.loadAllFromPreferences()
+            let managers = try await loadVPNManagers()
             guard let manager = managers.first else {
                 return false
             }
@@ -63,7 +63,7 @@ struct ToggleVPNIntent: SetValueIntent {
     var value: Bool
 
     func perform() async throws -> some IntentResult {
-        let managers = try await NETunnelProviderManager.loadAllFromPreferences()
+        let managers = try await loadVPNManagers()
         guard let manager = managers.first else {
             throw TunnelManagerError.unavailable
         }

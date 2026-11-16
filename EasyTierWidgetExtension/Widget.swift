@@ -57,7 +57,7 @@ struct VPNStatusProvider: TimelineProvider {
 
     private func fetchConnectionStatus() async -> Bool {
         do {
-            let managers = try await NETunnelProviderManager.loadAllFromPreferences()
+            let managers = try await loadVPNManagers()
             guard let manager = managers.first else {
                 return false
             }
@@ -171,7 +171,7 @@ struct ToggleVPNConnectionIntent: AppIntent {
     static let title: LocalizedStringResource = "toggle_vpn"
 
     func perform() async throws -> some IntentResult {
-        let managers = try await NETunnelProviderManager.loadAllFromPreferences()
+        let managers = try await loadVPNManagers()
         guard let manager = managers.first else {
             throw TunnelManagerError.unavailable
         }

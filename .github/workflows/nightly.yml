@@ -20,7 +20,6 @@ env:
   BUILD_CONFIGURATION: Release
   IPA_NAME: EasyTier-ios15-trollstore.ipa
   TEAM_ID: M2G6355ZK7
-  IPHONEOS_DEPLOYMENT_TARGET: '15.0'
   BUILD_ROOT: ${{ github.workspace }}/.build
   CARGO_HOME: ${{ github.workspace }}/.build/cargo
 
@@ -67,6 +66,8 @@ jobs:
         run: node --test tests/verify-ios15.test.cjs
 
       - name: Archive unsigned Release build
+        env:
+          IPHONEOS_DEPLOYMENT_TARGET: '15.0'
         shell: bash
         run: |
           set -euo pipefail

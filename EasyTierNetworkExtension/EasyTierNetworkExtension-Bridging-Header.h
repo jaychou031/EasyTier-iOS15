@@ -8,9 +8,12 @@
 #include <sys/ioccom.h>
 #include <sys/kern_control.h>
 
-#ifndef CTLIOCGINFO
-#define CTLIOCGINFO 0xc0644e03UL
+// The SDK's _IOWR expression contains sizeof(struct ctl_info), which Swift's
+// Clang importer cannot expose. Replace it with the equivalent Darwin value.
+#ifdef CTLIOCGINFO
+#undef CTLIOCGINFO
 #endif
+#define CTLIOCGINFO 0xc0644e03UL
 
 #else
 

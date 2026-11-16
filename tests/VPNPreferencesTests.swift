@@ -3,7 +3,9 @@ import NetworkExtension
 import EasyTierShared
 
 // Exercise delayed callbacks without creating a real system VPN configuration.
-private final class StubVPNManager: NEVPNManager {
+// NEVPNManager must be accessed via shared(); its base init asserts at runtime.
+// Tunnel-provider managers support init(), as used by the app's install path.
+private final class StubVPNManager: NETunnelProviderManager {
     var failure: NSError?
     var saves = 0
     var removals = 0

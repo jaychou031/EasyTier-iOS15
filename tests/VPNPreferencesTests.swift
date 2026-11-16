@@ -8,16 +8,16 @@ private final class StubVPNManager: NEVPNManager {
     var saves = 0
     var removals = 0
 
-    override func saveToPreferences(completionHandler: @escaping (Error?) -> Void) {
+    override func saveToPreferences(completionHandler: (@Sendable (Error?) -> Void)?) {
         saves += 1
         let error = failure
-        DispatchQueue.main.async { completionHandler(error) }
+        DispatchQueue.main.async { completionHandler?(error) }
     }
 
-    override func removeFromPreferences(completionHandler: @escaping (Error?) -> Void) {
+    override func removeFromPreferences(completionHandler: (@Sendable (Error?) -> Void)?) {
         removals += 1
         let error = failure
-        DispatchQueue.main.async { completionHandler(error) }
+        DispatchQueue.main.async { completionHandler?(error) }
     }
 }
 

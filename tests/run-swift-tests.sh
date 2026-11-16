@@ -11,6 +11,7 @@ mkdir -p .build/tests
 test_dir=$(mktemp -d "$PWD/.build/tests/tunnel.XXXXXX")
 trap 'rm -rf "$test_dir"' EXIT
 xcrun --sdk macosx swiftc -sdk "$SDKROOT" -target "$host_target" \
+  -swift-version 6 \
   -emit-module -emit-library -module-name EasyTierShared \
   -module-cache-path "$test_dir/cache" EasyTierShared/EasyTierShared.swift \
   -o "$test_dir/libEasyTierShared.dylib"

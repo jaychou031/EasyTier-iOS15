@@ -278,15 +278,10 @@ public func saveVPNPreferences(_ manager: NEVPNManager) async throws {
 }
 
 public func loadVPNManagers() async throws -> [NETunnelProviderManager] {
-    try await withCheckedThrowingContinuation { continuation in
-        NETunnelProviderManager.loadAllFromPreferences { managers, error in
-            if let error {
-                continuation.resume(throwing: error)
-            } else {
-                continuation.resume(returning: managers ?? [])
-            }
-        }
-    }
+    // The observed crash was in saving preferences, not loading managers.
+    // Keep the SDK's async import here: manually resuming a continuation with
+    // these non-Sendable reference objects fails Swift 6's transfer checks.
+    try await NETunnelProviderManager.loadAllFromPreferences()
 }
 
 public func removeVPNPreferences(_ manager: NEVPNManager) async throws {

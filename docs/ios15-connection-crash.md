@@ -17,10 +17,14 @@ This localizes the observed failure to asynchronous resumption after saving VPN
 preferences. It does not establish a Rust core failure, a signing failure, or
 which of the two save calls (installation versus connection) triggered it.
 
-The workaround replaces SDK-imported async preference operations with explicit
-completion-handler calls and checked continuations. The shared implementation
-is used for installation, connection, renaming, on-demand configuration, manager
-loading/removal, and widget operations. Errors continue to propagate to callers.
+The workaround replaces SDK-imported async save/remove preference operations
+with explicit completion-handler calls and checked continuations. The shared
+implementation is used for installation, connection, renaming, on-demand
+configuration, removal, and widget saves. Errors continue to propagate to callers.
+Loading managers retains the SDK's async import: the initial custom loading
+continuation failed Swift 6 checks because NETunnelProviderManager is not Sendable.
+The host test script now also compiles EasyTierShared in Swift 6 language mode,
+matching the project, so this class of diagnostic is caught before archiving.
 
 The macOS test harness now exercises delayed save/remove callbacks for both
 success and failure using a stub manager, without changing system preferences.

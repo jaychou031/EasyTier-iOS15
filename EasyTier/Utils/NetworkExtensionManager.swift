@@ -64,6 +64,37 @@ class NetworkExtensionManager: NetworkExtensionManagerProtocol {
     private var manager: NETunnelProviderManager?
     private var connection: NEVPNConnection?
     private var observer: Any?
+    private var diagnosticAttempt: UUID?
+
+    @MainActor
+    private func monitorConnectionStart(_ connection: NEVPNConnection, attempt: UUID) {
+        Task { @MainActor [weak self] in
+            // Poll as well as observing notifications: an extension can exit
+            // before the app observes an intermediate connecting status.
+            for _ in 0..<30 {
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                guard let self, self.diagnosticAttempt == attempt else { return }
+                if connection.status == .connected {
+                    self.diagnosticAttempt = nil
+                    UserDefaults.standard.removeObject(forKey: "LastConnectionDiagnostic")
+                    return
+                }
+                guard [.disconnected, .invalid].contains(connection.status) else { continue }
+                self.diagnosticAttempt = nil
+                let defaults = UserDefaults(suiteName: APP_GROUP_ID)
+                let stage = defaults?.string(forKey: "TunnelStartupStage")
+                    ?? "未收到扩展启动记录（也可能是 App Group 共享数据不可用）"
+                let stop = defaults?.object(forKey: "TunnelStopReason")
+                    .map { "\($0)" } ?? "未收到停止原因"
+                let error = defaults?.string(forKey: "TunnelLastError") ?? "扩展未返回错误详情"
+                let message = "VPN 启动失败\n状态：\(connection.status.rawValue)\n阶段：\(stage)\n停止原因：\(stop)\n\(error)"
+                UserDefaults.standard.set(message, forKey: "LastConnectionDiagnostic")
+                NotificationCenter.default.post(name: Notification.Name("\(APP_BUNDLE_ID).connection-diagnostic"),
+                                                object: nil, userInfo: ["message": message])
+                return
+            }
+        }
+    }
 
     @Published var status: NEVPNStatus
     @Published var connectedDate: Date?
@@ -244,21 +275,35 @@ class NetworkExtensionManager: NetworkExtensionManagerProtocol {
         }
         guard let manager else {
             Self.logger.error("connect() failed: manager is nil")
-            return
+            throw NEManagerError.providerUnavailable
         }
 
+        let attempt = UUID()
+        diagnosticAttempt = attempt
+        let defaults = UserDefaults(suiteName: APP_GROUP_ID)
+        for key in ["TunnelStartupStage", "TunnelStopReason", "TunnelLastError"] {
+            defaults?.removeObject(forKey: key)
+        }
+        defaults?.synchronize()
+        UserDefaults.standard.removeObject(forKey: "LastConnectionDiagnostic")
         do {
             try await connectWithManager(manager, logger: Self.logger)
         } catch {
+            diagnosticAttempt = nil
             Self.logger.error("connect() start vpn tunnel failed: \(String(describing: error))")
+            let detail = error as NSError
+            UserDefaults.standard.set("VPN 请求失败：\(detail.domain) (\(detail.code))\n\(detail.localizedDescription)",
+                                      forKey: "LastConnectionDiagnostic")
             throw error
         }
+        monitorConnectionStart(manager.connection, attempt: attempt)
         Self.logger.info("connect() started")
         // Immediately sync widget state after initiating connection
         syncWidgetState()
     }
     
     func disconnect() async {
+        diagnosticAttempt = nil
         guard let manager else {
             Self.logger.error("disconnect() failed: manager is nil")
             return

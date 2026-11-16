@@ -19,10 +19,17 @@ struct LogView<Manager: NetworkExtensionManagerProtocol>: View {
     @State private var isExportPresented = false
 #endif
     @State private var exportErrorMessage: TextItem?
+    @AppStorage("LastConnectionDiagnostic") private var connectionDiagnostic = ""
     
     var body: some View {
         CompatibleNavigationStack {
             VStack(alignment: .leading) {
+                if !connectionDiagnostic.isEmpty {
+                    Text(connectionDiagnostic)
+                        .font(.footnote)
+                        .textSelection(.enabled)
+                        .padding()
+                }
                 // Log Content
                 ScrollView {
                     ScrollViewReader { proxy in

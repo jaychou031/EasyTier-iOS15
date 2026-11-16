@@ -116,6 +116,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             return
         }
         self.pendingStartCompletion = nil
+        recordStartupStage(error == nil ? "扩展启动完成" : "扩展报告启动失败")
         pendingStartCompletion.completion.finish(error)
     }
 
@@ -148,6 +149,14 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
         // Wake the host app via Darwin notification
         postDarwinNotification("\(APP_BUNDLE_ID).error")
+    }
+
+    // Persist before Rust logging starts, so early startup failures are visible
+    // even when no easytier.log was created. Never store configuration secrets.
+    private func recordStartupStage(_ stage: String) {
+        let defaults = UserDefaults(suiteName: APP_GROUP_ID)
+        defaults?.set(stage, forKey: "TunnelStartupStage")
+        defaults?.synchronize()
     }
     
     private func applyNetworkSettings(
@@ -210,6 +219,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
             let needSetTunFd = self.shouldUpdateTunFd(old: self.lastAppliedSettings, new: newSnapshot, force: forceTunRebind)
             logger.info("applyNetworkSettings() need set tunfd: \(needSetTunFd), settings: \(settings, privacy: .public)")
+            self.recordStartupStage("正在应用系统隧道网络设置")
             self.setTunnelNetworkSettings(settings) { [weak self] error in
                 guard let self else {
                     completion(error ?? "packet tunnel provider was deallocated")
@@ -241,6 +251,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                         return
                     }
                     if needSetTunFd {
+                        self.recordStartupStage("正在获取隧道文件描述符")
                         guard let tunFd = self.packetFlow.value(forKeyPath: "socket.fileDescriptor") as? Int32
                                 ?? tunnelFileDescriptor() else {
                             let message = "no available tun fd"
@@ -417,6 +428,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     // Only creation differs by source. Both feed the same event queue and wait
     // for the same settings acknowledgement before declaring an instance ready.
     private func startConfiguredTunnel(options: EasyTierOptions, generation: UInt64) {
+        recordStartupStage("正在启动 Rust 网络实例")
         tunnelSession = TunnelSession(options: options)
         lastOptions = nil
         let callback: @convention(c) (UnsafePointer<CChar>?) -> Void = { pointer in
@@ -450,6 +462,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 error: extractRustString(errPtr) ?? "cannot start tunnel", stopNetwork: false)
             return
         }
+        recordStartupStage("Rust 启动请求已接受，等待网络设置")
         if options.mode == .local {
             // Local startup completes only after its run event is applied.
             tunnelSession?.phase = .ready
@@ -496,6 +509,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     }
 
     override func startTunnel(options: [String : NSObject]?, completionHandler: @escaping (Error?) -> Void) {
+        recordStartupStage("已进入扩展 startTunnel")
         logger.warning("startTunnel(): triggered")
         let completion = OneShotErrorCompletion(completionHandler)
         settingsQueue.async {
@@ -520,12 +534,16 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 self.failStart(generation: generation, error: message, stopNetwork: false)
                 return
             }
+            self.recordStartupStage("已读取共享配置，正在初始化 Rust 日志")
             initRustLogger(level: options.logLevel)
             self.startConfiguredTunnel(options: options, generation: generation)
         }
     }
     
     override func stopTunnel(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
+        let defaults = UserDefaults(suiteName: APP_GROUP_ID)
+        defaults?.set(reason.rawValue, forKey: "TunnelStopReason")
+        defaults?.synchronize()
         logger.warning("stopTunnel(): triggered")
         settingsQueue.async {
             self.tunnelGeneration &+= 1

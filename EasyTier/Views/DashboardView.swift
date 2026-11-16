@@ -605,6 +605,11 @@ struct DashboardView<Manager: NetworkExtensionManagerProtocol>: View {
                 handleConflict(configName: configName ?? selectedSession.session?.name)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("\(APP_BUNDLE_ID).connection-diagnostic"))) { notification in
+            if let message = notification.userInfo?["message"] as? String {
+                errorMessage = .init(message)
+            }
+        }
         .sheet(isPresented: $showManageSheet) {
             manageSheet
                 .sheet(item: $editDraft) { draft in

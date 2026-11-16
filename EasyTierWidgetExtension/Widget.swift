@@ -136,18 +136,16 @@ struct VPNStatusWidgetView: View {
                     if #available(iOS 17.0, macOS 14.0, *) {
                         Button(text, intent: ToggleVPNConnectionIntent())
                     } else {
-                        Button(text) {
-                            Task {
-                                _ = try? await ToggleVPNConnectionIntent().perform()
-                            }
-                        }
+                        // Widgets cannot run button actions before iOS 17.
+                        // Tapping opens the app, where the VPN can be toggled.
+                        Text("EasyTier").font(.caption)
                     }
                 }
                 .lineLimit(1)
                 .controlSize(family == .systemSmall ? .small : .regular)
                 .tint(entry.isConnected ? Color.red : Color.accentColor)
                 .buttonStyle(.borderedProminent)
-                .widgetAccentable()
+                .compatibleWidgetAccentable()
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -168,6 +166,7 @@ struct EasyTierStatusWidget: Widget {
     }
 }
 
+@available(iOS 16.0, macOS 13.0, *)
 struct ToggleVPNConnectionIntent: AppIntent {
     static let title: LocalizedStringResource = "toggle_vpn"
 
@@ -190,6 +189,15 @@ struct ToggleVPNConnectionIntent: AppIntent {
 }
 
 extension View {
+    @ViewBuilder
+    func compatibleWidgetAccentable() -> some View {
+        if #available(iOS 16.0, macOS 13.0, *) {
+            self.widgetAccentable()
+        } else {
+            self
+        }
+    }
+
     @ViewBuilder
     func widgetBackgroundStyle() -> some View {
         if #available(iOS 17.0, macOS 14.0, *) {

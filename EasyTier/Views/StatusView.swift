@@ -46,7 +46,7 @@ struct StatusView<Manager: NetworkExtensionManagerProtocol>: View {
 
     var body: some View {
         Group {
-            if sizeClass == .regular {
+            if #available(iOS 16.0, macOS 13.0, *), sizeClass == .regular {
                 ViewThatFits(in: .horizontal) {
                     doubleComlum
                     singleColumn
@@ -142,7 +142,7 @@ struct StatusView<Manager: NetworkExtensionManagerProtocol>: View {
             info
 #endif
         }
-        .formStyle(.grouped)
+        .compatibleGroupedForm()
     }
     
     var doubleComlum: some View {
@@ -166,7 +166,7 @@ struct StatusView<Manager: NetworkExtensionManagerProtocol>: View {
                     peerInfo
                 }
             }
-            .formStyle(.grouped)
+            .compatibleGroupedForm()
             .columnGutter(.trailing)
             .frame(minWidth: columnMinWidth, maxWidth: columnMaxWidth)
             Form {
@@ -174,7 +174,7 @@ struct StatusView<Manager: NetworkExtensionManagerProtocol>: View {
                     TimelineLogPanel(events: status?.events ?? [])
                 }
             }
-            .formStyle(.grouped)
+            .compatibleGroupedForm()
             .columnGutter(.leading)
             .frame(minWidth: columnMinWidth)
         }

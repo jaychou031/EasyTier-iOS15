@@ -1,5 +1,7 @@
 # EasyTier iOS/macOS Client
 
+> This branch targets iOS 15.0 and builds with GitHub Actions. See the [compatibility notes](docs/ios15-support.md) for changes and validation limits. An Actions build and device testing are still required.
+
 [简体中文](README_CN.md) | [English](README.md)
 
 iOS/macOS native client application for EasyTier, a decentralized virtual private network solution.

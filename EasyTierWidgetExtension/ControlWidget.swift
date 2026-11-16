@@ -55,6 +55,7 @@ extension EasyTierControlWidget {
     }
 }
 
+@available(iOS 18.0, macOS 15.0, *)
 struct ToggleVPNIntent: SetValueIntent {
     static let title: LocalizedStringResource = "toggle_vpn"
 

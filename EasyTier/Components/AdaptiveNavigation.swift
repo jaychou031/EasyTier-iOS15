@@ -39,16 +39,17 @@ extension View {
         modifier(ColumnGutter(edge: edge, minimum: minimum))
     }
 
+    @ViewBuilder
     func adaptiveNavigationDestination<Enum: Identifiable & Hashable, Destination: View>(
         item: Binding<Enum?>,
         @ViewBuilder destination: @escaping () -> Destination
     ) -> some View {
         if #available(iOS 17.0, macOS 14.0, *) {
-            return self.navigationDestination(item: item) { _ in
+            self.navigationDestination(item: item) { _ in
                 destination()
             }
-        } else {
-            return self.navigationDestination(
+        } else if #available(iOS 16.0, macOS 13.0, *) {
+            self.navigationDestination(
                 isPresented: Binding(
                     get: { item.wrappedValue != nil },
                     set: { isPresented in
@@ -60,6 +61,18 @@ extension View {
             ) {
                 destination()
             }
+        } else {
+            self.background(
+                NavigationLink(isActive: Binding(
+                    get: { item.wrappedValue != nil },
+                    set: { if !$0 { item.wrappedValue = nil } }
+                )) {
+                    destination()
+                } label: {
+                    EmptyView()
+                }
+                .hidden()
+            )
         }
     }
 }
@@ -67,23 +80,11 @@ extension View {
 private struct ColumnGutter: ViewModifier {
     let edge: HorizontalEdge
     let minimum: CGFloat
-    @State private var extra: CGFloat = 0
 
     func body(content: Content) -> some View {
         content
             .safeAreaInset(edge: edge, spacing: 0) {
-                Color.clear.frame(width: extra)
-            }
-            .background {
-                if #available(iOS 27.1, macOS 27.1, *) {
-                    GeometryReader { proxy in
-                        let margins = proxy.contentMargins(for: .container, edges: edge == .leading ? .leading : .trailing)
-                        let systemMargin = edge == .leading ? margins.leading : margins.trailing
-                        Color.clear.onChange(of: systemMargin, initial: true) { _, newValue in
-                            extra = max(0, minimum - newValue)
-                        }
-                    }
-                }
+                Color.clear.frame(width: minimum)
             }
     }
 }

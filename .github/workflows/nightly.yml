@@ -5,24 +5,29 @@ on:
     branches:
       - main
   workflow_dispatch:
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write
 
 concurrency:
-  group: nightly
+  group: nightly-${{ github.ref }}
   cancel-in-progress: true
 
 env:
   SCHEME: EasyTier
   BUILD_CONFIGURATION: Release
-  IPA_NAME: EasyTier-nightly-trollstore.ipa
+  IPA_NAME: EasyTier-ios15-trollstore.ipa
   TEAM_ID: M2G6355ZK7
+  IPHONEOS_DEPLOYMENT_TARGET: '15.0'
+  BUILD_ROOT: ${{ github.workspace }}/.build
+  CARGO_HOME: ${{ github.workspace }}/.build/cargo
 
 jobs:
   build-and-release:
     name: Build and publish TrollStore IPA
-    runs-on: xcode-27
+    runs-on: macos-15
     timeout-minutes: 90
 
     steps:
@@ -34,13 +39,16 @@ jobs:
         run: |
           set -euo pipefail
 
-          echo "ARCHIVE_PATH=${RUNNER_TEMP}/EasyTier.xcarchive" >> "${GITHUB_ENV}"
-          echo "PACKAGE_PATH=${RUNNER_TEMP}/package" >> "${GITHUB_ENV}"
-          echo "EXPORT_PATH=${RUNNER_TEMP}/export" >> "${GITHUB_ENV}"
+          mkdir -p "${BUILD_ROOT}" "${CARGO_HOME}"
+          echo "ARCHIVE_PATH=${BUILD_ROOT}/EasyTier.xcarchive" >> "${GITHUB_ENV}"
+          echo "PACKAGE_PATH=${BUILD_ROOT}/package" >> "${GITHUB_ENV}"
+          echo "EXPORT_PATH=${BUILD_ROOT}/export" >> "${GITHUB_ENV}"
 
-          sudo xcode-select --switch /Applications/Xcode_27.2.app/Contents/Developer
+          sudo xcode-select --switch /Applications/Xcode_26.3.app/Contents/Developer
           xcodebuild -version
 
+          rustup toolchain install stable --profile minimal
+          rustup default stable
           rustup target add aarch64-apple-ios
           if ! command -v protoc >/dev/null 2>&1; then
             brew install protobuf
@@ -48,6 +56,15 @@ jobs:
 
           rustc --version
           protoc --version
+
+      - name: Run lifecycle and profile tests
+        shell: bash
+        run: |
+          bash -n ci_scripts/build-core.sh tests/run-swift-tests.sh
+          bash tests/run-swift-tests.sh
+
+      - name: Test IPA compatibility validator
+        run: node --test tests/verify-ios15.test.cjs
 
       - name: Archive unsigned Release build
         shell: bash
@@ -60,12 +77,28 @@ jobs:
             -configuration "${BUILD_CONFIGURATION}" \
             -destination "generic/platform=iOS" \
             -archivePath "${ARCHIVE_PATH}" \
+            -derivedDataPath "${BUILD_ROOT}/DerivedData" \
+            -clonedSourcePackagesDirPath "${BUILD_ROOT}/SourcePackages" \
+            -resultBundlePath "${BUILD_ROOT}/ArchiveResult.xcresult" \
+            -onlyUsePackageVersionsFromResolvedFile \
+            IPHONEOS_DEPLOYMENT_TARGET="${IPHONEOS_DEPLOYMENT_TARGET}" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             AD_HOC_CODE_SIGNING_ALLOWED=NO \
             CODE_SIGN_IDENTITY="" \
             DEVELOPMENT_TEAM="${TEAM_ID}" \
-            CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER}"
+            CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER}" \
+            2>&1 | tee "${BUILD_ROOT}/archive.log"
+
+          # The final Mach-O target alone cannot detect a newer Rust/C object
+          # linked with a warning. Refuse to package such a build.
+          if grep -Ei 'built for .*newer|built for newer' "${BUILD_ROOT}/archive.log"; then
+            echo 'A linked dependency requires a newer OS than the app target.' >&2
+            exit 1
+          fi
+
+      - name: Verify iOS 15 bundle and Mach-O requirements
+        run: node ci_scripts/verify-ios15.cjs "${ARCHIVE_PATH}/Products/Applications/EasyTier.app"
 
       - name: Ad-hoc sign app for TrollStore
         shell: bash
@@ -75,9 +108,9 @@ jobs:
           APP_PATH="${ARCHIVE_PATH}/Products/Applications/EasyTier.app"
           TUNNEL_PATH="${APP_PATH}/PlugIns/EasyTierNetworkExtension.appex"
           WIDGET_PATH="${APP_PATH}/PlugIns/EasyTierWidgetExtension.appex"
-          APP_ENTITLEMENTS="${RUNNER_TEMP}/EasyTier.signing.entitlements"
-          TUNNEL_ENTITLEMENTS="${RUNNER_TEMP}/EasyTierNetworkExtension.signing.entitlements"
-          WIDGET_ENTITLEMENTS="${RUNNER_TEMP}/EasyTierWidgetExtension.signing.entitlements"
+          APP_ENTITLEMENTS="${BUILD_ROOT}/EasyTier.signing.entitlements"
+          TUNNEL_ENTITLEMENTS="${BUILD_ROOT}/EasyTierNetworkExtension.signing.entitlements"
+          WIDGET_ENTITLEMENTS="${BUILD_ROOT}/EasyTierWidgetExtension.signing.entitlements"
 
           create_signing_entitlements() {
             local source_path="$1"
@@ -137,6 +170,8 @@ jobs:
             --entitlements "${APP_ENTITLEMENTS}" \
             "${APP_PATH}"
 
+          codesign --verify --deep --strict "${APP_PATH}"
+
       - name: Package TrollStore IPA
         shell: bash
         run: |
@@ -150,16 +185,19 @@ jobs:
             cd "${PACKAGE_PATH}"
             /usr/bin/zip -qry "${EXPORT_PATH}/${IPA_NAME}" Payload
           )
+          /usr/bin/unzip -tq "${EXPORT_PATH}/${IPA_NAME}"
+          (cd "${EXPORT_PATH}" && shasum -a 256 "${IPA_NAME}" > "${IPA_NAME}.sha256")
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: EasyTier-nightly-trollstore-${{ github.run_number }}
-          path: ${{ runner.temp }}/export/EasyTier-nightly-trollstore.ipa
+          name: EasyTier-ios15-trollstore-${{ github.run_number }}
+          path: ${{ env.BUILD_ROOT }}/export/*
           if-no-files-found: error
           retention-days: 14
 
       - name: Update rolling nightly release
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -168,12 +206,13 @@ jobs:
 
           BUILD_TIME="$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
           SHORT_SHA="${GITHUB_SHA:0:7}"
-          RELEASE_NOTES="${RUNNER_TEMP}/nightly-release-notes.md"
+          RELEASE_NOTES="${BUILD_ROOT}/nightly-release-notes.md"
 
           {
             echo "Automated Release build from [\`${SHORT_SHA}\`](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA})."
             echo
             echo "- Build configuration: \`${BUILD_CONFIGURATION}\`"
+            echo "- Minimum iOS: 15.0 (bundle and Mach-O checked)"
             echo "- Code signing: ad-hoc with Xcode Team ID \`${TEAM_ID}\` and complete app/extension entitlements"
             echo "- Built: ${BUILD_TIME}"
             echo "- Workflow run: [#${GITHUB_RUN_NUMBER}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})"
@@ -193,6 +232,7 @@ jobs:
               --latest=false
             gh release upload nightly \
               "${EXPORT_PATH}/${IPA_NAME}" \
+              "${EXPORT_PATH}/${IPA_NAME}.sha256" \
               --clobber
             gh release delete-asset nightly \
               EasyTier-nightly-unsigned.ipa \
@@ -203,6 +243,7 @@ jobs:
           else
             gh release create nightly \
               "${EXPORT_PATH}/${IPA_NAME}" \
+              "${EXPORT_PATH}/${IPA_NAME}.sha256" \
               --verify-tag \
               --target "${GITHUB_SHA}" \
               --title "EasyTier Nightly (${SHORT_SHA})" \
@@ -210,3 +251,14 @@ jobs:
               --prerelease \
               --latest=false
           fi
+
+      - name: Upload archive diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ios15-build-diagnostics-${{ github.run_number }}
+          path: |
+            ${{ env.BUILD_ROOT }}/ArchiveResult.xcresult
+            ${{ env.BUILD_ROOT }}/archive.log
+          if-no-files-found: ignore
+          retention-days: 7

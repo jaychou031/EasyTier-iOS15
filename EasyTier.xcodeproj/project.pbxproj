@@ -85,7 +85,7 @@
 		055836302F04D26700139811 /* NetworkExtension.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = NetworkExtension.framework; path = System/Library/Frameworks/NetworkExtension.framework; sourceTree = SDKROOT; };
 		058E57A42F20AFD800BE84F9 /* lib.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = lib.rs; sourceTree = "<group>"; };
 		058EB1C12F20AFD800BE84F9 /* Cargo.toml */ = {isa = PBXFileReference; lastKnownFileType = text; path = Cargo.toml; sourceTree = "<group>"; };
-		059A7D692F9C966E001778FC /* SystemConfiguration.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SystemConfiguration.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/SystemConfiguration.framework; sourceTree = DEVELOPER_DIR; };
+		059A7D692F9C966E001778FC /* SystemConfiguration.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SystemConfiguration.framework; path = System/Library/Frameworks/SystemConfiguration.framework; sourceTree = SDKROOT; };
 		05B61F5B2F05056D00646DDC /* libeasytier_ios.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libeasytier_ios.a; sourceTree = "<group>"; };
 		7A59B8192F1641100069728D /* EasyTierWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = EasyTierWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		7A59B81A2F1641100069728D /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
@@ -434,7 +434,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [ -f \"$HOME/.cargo/env\" ]; then\n    . \"$HOME/.cargo/env\"\nfi\nPATH=\"${HOME}/.local/bin:${PATH}\"\nif [ -f \"/opt/homebrew/bin/brew\" ]; then\n    eval \"$(/opt/homebrew/bin/brew shellenv)\"\nfi\n\ncd \"${PROJECT_DIR}/Core\"\n\nfor ARCH in ${ARCHS}\ndo\n    case \"${ARCH}\" in\n        \"arm64\")\n            PREFIX=\"aarch64\"\n            ;;\n        \"x86_64\")\n            PREFIX=\"x86_64\"\n            ;;\n        *)\n            echo \"Unknown arch: ${ARCHS}\"\n            exit -1\n            ;;\n    esac\n\n    case \"${PLATFORM_NAME}\" in\n        \"iphoneos\")\n            TARGET=\"$PREFIX-apple-ios\"\n            ;;\n        \"iphonesimulator\")\n            TARGET=\"$PREFIX-apple-ios-sim\"\n            ;;\n        \"macosx\")\n            TARGET=\"$PREFIX-apple-darwin\"\n            ;;\n        *)\n            echo \"Unknown platform: ${PLATFORM_NAME}\"\n            exit -1\n            ;;\n    esac\n\n    if [ \"${CONFIGURATION}\" = \"Debug\" ]; then\n        cargo build --target $TARGET\n    else\n        cargo build --target $TARGET --release\n    fi\ndone\n";
+			shellScript = "bash \"${PROJECT_DIR}/ci_scripts/build-core.sh\"";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -617,6 +617,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				"ASSETCATALOG_COMPILER_APPICON_NAME[sdk=iphone*]" = LegacyAppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = EasyTier/EasyTier.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
@@ -656,7 +657,7 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
@@ -684,6 +685,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				"ASSETCATALOG_COMPILER_APPICON_NAME[sdk=iphone*]" = LegacyAppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = EasyTier/EasyTier.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
@@ -723,7 +725,7 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
@@ -755,7 +757,7 @@
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -778,7 +780,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = Y8RH943F65;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -822,7 +824,7 @@
 				INFOPLIST_FILE = EasyTierNetworkExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = EasyTierNetworkExtension;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -842,7 +844,7 @@
 				);
 				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*][arch=x86_64]" = (
 					"$(inherited)",
-					"${PROJECT_DIR}/Core/target/x86_64-apple-ios-sim/debug",
+					"${PROJECT_DIR}/Core/target/x86_64-apple-ios/debug",
 				);
 				"LIBRARY_SEARCH_PATHS[sdk=macosx*][arch=arm64]" = (
 					"$(inherited)",
@@ -900,7 +902,7 @@
 				INFOPLIST_FILE = EasyTierNetworkExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = EasyTierNetworkExtension;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -920,7 +922,7 @@
 				);
 				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*][arch=x86_64]" = (
 					"$(inherited)",
-					"${PROJECT_DIR}/Core/target/x86_64-apple-ios-sim/release",
+					"${PROJECT_DIR}/Core/target/x86_64-apple-ios/release",
 				);
 				"LIBRARY_SEARCH_PATHS[sdk=macosx*][arch=arm64]" = (
 					"$(inherited)",
@@ -979,7 +981,7 @@
 				INFOPLIST_FILE = EasyTierWidgetExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = EasyTierWidgetExtension;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1032,7 +1034,7 @@
 				INFOPLIST_FILE = EasyTierWidgetExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = EasyTierWidgetExtension;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

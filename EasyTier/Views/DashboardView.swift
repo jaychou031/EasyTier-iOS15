@@ -56,7 +56,7 @@ private struct ProfileTextEditor: View {
     }
 
     var body: some View {
-        NavigationStack {
+        CompatibleNavigationStack {
             VStack(spacing: 0) {
                 TextEditor(text: $text)
                     .font(.system(.body, design: .monospaced))
@@ -204,16 +204,16 @@ struct DashboardView<Manager: NetworkExtensionManagerProtocol>: View {
         } else if isConnected {
             Form {
                 Section("web_management.title") {
-                    LabeledContent("web_management.status.label", value: webStatusLabel)
+                    CompatibleLabeledContent("web_management.status.label", value: webStatusLabel)
                     if let instanceName = webStatus?.instanceName, !instanceName.isEmpty {
-                        LabeledContent("web_management.instance", value: instanceName)
+                        CompatibleLabeledContent("web_management.instance", value: instanceName)
                     }
                     if let error = webStatus?.error, !error.isEmpty {
                         Text(error).foregroundStyle(.red)
                     }
                 }
             }
-            .formStyle(.grouped)
+            .compatibleGroupedForm()
         } else {
             WebManagementEditView(
                 server: $webServer,
@@ -298,7 +298,7 @@ struct DashboardView<Manager: NetworkExtensionManagerProtocol>: View {
     }
 
     var manageSheet: some View {
-        NavigationStack {
+        CompatibleNavigationStack {
             Form {
                 Section("web_management.connection_mode") {
                     Picker("web_management.connection_mode", selection: connectionModeBinding) {
@@ -449,7 +449,7 @@ struct DashboardView<Manager: NetworkExtensionManagerProtocol>: View {
 #endif
                 }
             }
-            .formStyle(.grouped)
+            .compatibleGroupedForm()
             .navigationTitle("device.management")
             .adaptiveNavigationBarTitleInline()
             .toolbar {
@@ -463,36 +463,25 @@ struct DashboardView<Manager: NetworkExtensionManagerProtocol>: View {
                 isVisible: !ProfileStore.loadIndexOrEmpty().isEmpty,
                 placement: .cancellationAction
             )
-            .alert("add_new_network", isPresented: $showNewNetworkAlert) {
-                TextField("config_name", text: $newNetworkInput)
-                    .adaptiveNoTextInputAutocapitalization()
-                if #available(iOS 26.0, macOS 26.0, *) {
-                    Button(role: .cancel) {}
-                    Button("network.create", role: .confirm, action: createProfile)
-                } else {
-                    Button("common.cancel") {}
-                    Button("network.create", action: createProfile)
-                }
-            }
-            .alert("edit_config_name", isPresented: $showEditConfigNameAlert) {
-                TextField("config_name", text: $editConfigNameInput)
-                    .adaptiveNoTextInputAutocapitalization()
-                Button("common.cancel") {}
-                Button("save") {
-                    commitConfigNameEdit()
-                }
-            }
+            .profileNameSheet("add_new_network", isPresented: $showNewNetworkAlert,
+                              text: $newNetworkInput, saveTitle: "network.create",
+                              onSave: createProfile)
+            .profileNameSheet("edit_config_name", isPresented: $showEditConfigNameAlert,
+                              text: $editConfigNameInput, saveTitle: "save",
+                              onSave: commitConfigNameEdit)
         }
     }
 
     var body: some View {
-        NavigationStack {
+        CompatibleNavigationStack {
             mainView
                 .navigationTitle(connectionMode == .web ? String(localized: "web_management.title") : (selectedSession.session?.name ?? String(localized: "select_network")))
             .toolbar {
                 ToolbarItem(placement: ToolbarLeading) {
-                    Button("select_network", systemImage: "chevron.up.chevron.down") {
+                    Button {
                         showManageSheet = true
+                    } label: {
+                        Label("select_network", systemImage: "chevron.up.chevron.down")
                     }
                     .disabled(isPending || isConnected)
                 }
@@ -534,7 +523,7 @@ struct DashboardView<Manager: NetworkExtensionManagerProtocol>: View {
                     .buttonStyle(.plain)
 #endif
                     .foregroundStyle(isConnected ? Color.red : Color.accentColor)
-                    .animation(.interactiveSpring, value: [isConnected, isPending])
+                    .animation(.interactiveSpring(), value: [isConnected, isPending])
                 }
                 .adaptiveVerticalPreferred()
             }
@@ -562,7 +551,7 @@ struct DashboardView<Manager: NetworkExtensionManagerProtocol>: View {
             webStatusTask = Task { @MainActor in
                 while !Task.isCancelled {
                     refreshWebStatus()
-                    try? await Task.sleep(for: .seconds(2))
+                    try? await Task.sleep(nanoseconds: 2_000_000_000)
                 }
             }
         }

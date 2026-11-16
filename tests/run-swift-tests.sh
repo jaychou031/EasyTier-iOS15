@@ -1,7 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-test_dir=$(mktemp -d /tmp/easytier-tunnel-tests.XXXXXX)
+mkdir -p .build/tests
+test_dir=$(mktemp -d "$PWD/.build/tests/tunnel.XXXXXX")
 trap 'rm -rf "$test_dir"' EXIT
 xcrun swiftc -emit-module -emit-library -module-name EasyTierShared \
   -module-cache-path "$test_dir/cache" EasyTierShared/EasyTierShared.swift \

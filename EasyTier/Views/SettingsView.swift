@@ -61,11 +61,11 @@ struct SettingsView<Manager: NetworkExtensionManagerProtocol>: View {
     }
 
     var body: some View {
-        NavigationStack {
+        CompatibleNavigationStack {
             AdaptiveNavigation(primaryColumn, secondaryColumn, showNav: $selectedPane)
                 .navigationTitle("settings")
                 .adaptiveNavigationBarTitleInline()
-                .scrollDismissesKeyboard(.immediately)
+                .compatibleDismissKeyboard()
         }
     }
     
@@ -79,7 +79,7 @@ struct SettingsView<Manager: NetworkExtensionManagerProtocol>: View {
             Form {
                 settingsContent
             }
-            .formStyle(.grouped)
+            .compatibleGroupedForm()
 #endif
         }
         .alert(item: $settingsErrorMessage) { msg in
@@ -150,7 +150,7 @@ struct SettingsView<Manager: NetworkExtensionManagerProtocol>: View {
     var settingsContent: some View {
         Group {
             Section("general") {
-                LabeledContent("status_refresh_rate") {
+                CompatibleLabeledContent("status_refresh_rate") {
                     HStack {
                         TextField(
                             "1.0",
@@ -185,7 +185,7 @@ struct SettingsView<Manager: NetworkExtensionManagerProtocol>: View {
                     }
                 }
                 .disabled(manager.status != .disconnected)
-                LabeledContent("log_preserved_lines") {
+                CompatibleLabeledContent("log_preserved_lines") {
                     TextField(
                         "1000",
                         value: $logPreservedLines,
@@ -224,9 +224,13 @@ struct SettingsView<Manager: NetworkExtensionManagerProtocol>: View {
             Section {
                 Toggle("include_all_networks", isOn: $includeAllNetworks)
                 Toggle("exclude_local_networks", isOn: $excludeLocalNetworks)
-                Toggle("exclude_cellular_services", isOn: $excludeCellularServices)
-                Toggle("exclude_apns", isOn: $excludeAPNs)
-                Toggle("exclude_device_communication", isOn: $excludeDeviceCommunication)
+                if #available(iOS 16.4, macOS 13.3, *) {
+                    Toggle("exclude_cellular_services", isOn: $excludeCellularServices)
+                    Toggle("exclude_apns", isOn: $excludeAPNs)
+                }
+                if #available(iOS 17.4, macOS 14.4, *) {
+                    Toggle("exclude_device_communication", isOn: $excludeDeviceCommunication)
+                }
                 Toggle("enforce_routes", isOn: $enforceRoutes)
             } header: {
                 Text("advanced")
@@ -244,17 +248,29 @@ struct SettingsView<Manager: NetworkExtensionManagerProtocol>: View {
 #endif
 
             Section("about.title") {
-                LabeledContent("app") {
+                CompatibleLabeledContent("app") {
                     Text("EasyTier")
                 }
-                LabeledContent("version") {
+                CompatibleLabeledContent("version") {
                     Text(appVersion)
                 }
                 Link("about.homepage", destination: URL(string: "https://github.com/EasyTier/EasyTier-iOS")!)
                 Link("about.privacy_policy", destination: URL(string: "https://easytier.cn/guide/privacy.html")!)
                 
 #if os(iOS)
-                NavigationLink("about.license", value: SettingsPane.license)
+                if #available(iOS 16.0, *) {
+                    NavigationLink("about.license", value: SettingsPane.license)
+                } else {
+                    Button {
+                        selectedPane = .license
+                    } label: {
+                        HStack {
+                            Text("about.license").foregroundColor(.primary)
+                            Spacer()
+                            Image(systemName: "chevron.right").foregroundColor(.secondary)
+                        }
+                    }
+                }
 #else
                 NavigationLink("about.license") {
                     openSourceLicenseView

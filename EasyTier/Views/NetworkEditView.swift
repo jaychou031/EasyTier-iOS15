@@ -30,13 +30,13 @@ struct NetworkEditView: View {
 #if os(iOS)
             List(selection: $selectedPane) {
                 basicSettings
-                NavigationLink("advanced_settings", value: EditPane.advanced)
-                NavigationLink("dns_settings", value: EditPane.dns)
-                NavigationLink("route_settings", value: EditPane.route)
-                NavigationLink("port_forwards", value: EditPane.portForwards)
-                NavigationLink("acl.title", value: EditPane.acl)
+                paneLink("advanced_settings", pane: .advanced)
+                paneLink("dns_settings", pane: .dns)
+                paneLink("route_settings", pane: .route)
+                paneLink("port_forwards", pane: .portForwards)
+                paneLink("acl.title", pane: .acl)
             }
-            .scrollDismissesKeyboard(.immediately)
+            .compatibleDismissKeyboard()
 #else
             Form {
                 basicSettings
@@ -46,11 +46,28 @@ struct NetworkEditView: View {
                 NavigationLink("port_forwards") { portForwardsSettings }
                 NavigationLink("acl.title") { ACLSettingsView(acl: $profile.acl) }
             }
-            .formStyle(.grouped)
+            .compatibleGroupedForm()
 #endif
         }
     }
     
+    @ViewBuilder
+    private func paneLink(_ title: LocalizedStringKey, pane: EditPane) -> some View {
+        if #available(iOS 16.0, macOS 13.0, *) {
+            NavigationLink(title, value: pane)
+        } else {
+            Button {
+                selectedPane = pane
+            } label: {
+                HStack {
+                    Text(title).foregroundColor(.primary)
+                    Spacer()
+                    Image(systemName: "chevron.right").foregroundColor(.secondary)
+                }
+            }
+        }
+    }
+
     var secondaryColumn: some View {
         Group {
             switch selectedPane {
@@ -77,7 +94,7 @@ struct NetworkEditView: View {
                 .ignoresSafeArea()
             }
         }
-        .scrollDismissesKeyboard(.immediately)
+        .compatibleDismissKeyboard()
     }
 
     var basicSettings: some View {
@@ -86,14 +103,14 @@ struct NetworkEditView: View {
                 Toggle("dhcp", isOn: $profile.dhcp)
 
                 if !profile.dhcp {
-                    LabeledContent("address") {
+                    CompatibleLabeledContent("address") {
                         IPv4Field(ip: $profile.virtualIPv4.ip, length: $profile.virtualIPv4.length)
                     }
                 }
             }
 
             Section("network") {
-                LabeledContent("network_name") {
+                CompatibleLabeledContent("network_name") {
                     TextField(
                         "easytier",
                         text: $profile.networkName,
@@ -103,7 +120,7 @@ struct NetworkEditView: View {
                         .multilineTextAlignment(.trailing)
                 }
                 
-                LabeledContent("network_secret") {
+                CompatibleLabeledContent("network_secret") {
                     SecureField(
                         "common_text.empty",
                         text: $profile.networkSecret,
@@ -113,7 +130,7 @@ struct NetworkEditView: View {
                     .multilineTextAlignment(.trailing)
                 }
                 
-                LabeledContent("hostname") {
+                CompatibleLabeledContent("hostname") {
                     TextField(
                         "common_text.default",
                         text: $profile.hostname,
@@ -173,7 +190,7 @@ struct NetworkEditView: View {
     var advancedSettings: some View {
         Form {
             Section {
-                LabeledContent("mtu") {
+                CompatibleLabeledContent("mtu") {
                     TextField(
                         "common_text.default",
                         text: Binding(
@@ -192,7 +209,7 @@ struct NetworkEditView: View {
                     .multilineTextAlignment(.trailing)
                     .numberKeyboardType()
                 }
-                LabeledContent("instance_recv_bps_limit") {
+                CompatibleLabeledContent("instance_recv_bps_limit") {
                     TextField(
                         "example.instance_recv_bps_limit",
                         text: Binding(
@@ -233,22 +250,21 @@ struct NetworkEditView: View {
                     )
                 )
                 if profile.enableSecureMode {
-                    LabeledContent("local_private_key") {
-                        TextField(
+                    CompatibleLabeledContent("local_private_key") {
+                        CompatibleMultilineTextField(
                             "common_text.empty",
                             text: Binding(
                                 get: { profile.secureModeLocalPrivateKey },
                                 set: { profile.updateSecureModePrivateKey($0) }
                             ),
-                            prompt: Text("common_text.empty"),
-                            axis: .vertical
+                            prompt: Text("common_text.empty")
                         )
                         .labelsHidden()
                         .font(.body.monospaced())
                         .adaptiveNoTextInputAutocapitalization()
-                        .autocorrectionDisabled()
+                        .disableAutocorrection(true)
                     }
-                    LabeledContent("local_public_key") {
+                    CompatibleLabeledContent("local_public_key") {
                         Group {
                             if profile.secureModeLocalPublicKey.isEmpty {
                                 Text("common_text.empty")
@@ -273,10 +289,10 @@ struct NetworkEditView: View {
                     isOn: $profile.enableVPNPortal
                 )
                 if profile.enableVPNPortal {
-                    LabeledContent("vpn_portal_client_network") {
+                    CompatibleLabeledContent("vpn_portal_client_network") {
                         IPv4Field(ip: $profile.vpnPortalClientCIDR.ip, length: $profile.vpnPortalClientCIDR.length)
                     }
-                    LabeledContent("vpn_portal_listen_port") {
+                    CompatibleLabeledContent("vpn_portal_listen_port") {
                         TextField(
                             "example.vpn_portal_listen_port",
                             value: $profile.vpnPortalListenPort,
@@ -327,7 +343,7 @@ struct NetworkEditView: View {
                     isOn: $profile.enableSocks5
                 )
                 if profile.enableSocks5 {
-                    LabeledContent("listen_port") {
+                    CompatibleLabeledContent("listen_port") {
                         TextField(
                             "example.socks5_port",
                             value: $profile.socks5Port,
@@ -374,8 +390,8 @@ struct NetworkEditView: View {
             }
         }
         .navigationTitle("advanced_settings")
-        .scrollDismissesKeyboard(.immediately)
-        .formStyle(.grouped)
+        .compatibleDismissKeyboard()
+        .compatibleGroupedForm()
         .listEditingToolbar(
             isVisible: !profile.listenerURLs.isEmpty
                 || (profile.enableRelayNetworkWhitelist && !profile.relayNetworkWhitelist.isEmpty)
@@ -391,7 +407,7 @@ struct NetworkEditView: View {
                     isOn: $profile.enableMagicDNS
                 )
                 if profile.enableMagicDNS {
-                    LabeledContent("tld_dns_zone") {
+                    CompatibleLabeledContent("tld_dns_zone") {
                         TextField(
                             "example.tld_dns_zone",
                             text: $profile.magicDNSTLD,
@@ -429,8 +445,8 @@ struct NetworkEditView: View {
             }
         }
         .navigationTitle("dns_settings")
-        .scrollDismissesKeyboard(.immediately)
-        .formStyle(.grouped)
+        .compatibleDismissKeyboard()
+        .compatibleGroupedForm()
         .listEditingToolbar(
             isVisible: profile.enableOverrideDNS && !profile.overrideDNS.isEmpty
         )
@@ -474,11 +490,11 @@ struct NetworkEditView: View {
             }
         }
         .navigationTitle("route_settings")
-        .scrollDismissesKeyboard(.immediately)
+        .compatibleDismissKeyboard()
         .sheet(isPresented: $showProxyCIDREditor) {
             proxyCIDREditor
         }
-        .formStyle(.grouped)
+        .compatibleGroupedForm()
         .listEditingToolbar(
             isVisible: !profile.proxyCIDRs.isEmpty
                 || !profile.exitNodes.isEmpty
@@ -548,8 +564,8 @@ struct NetworkEditView: View {
             })
         }
         .navigationTitle("port_forwards")
-        .scrollDismissesKeyboard(.immediately)
-        .formStyle(.grouped)
+        .compatibleDismissKeyboard()
+        .compatibleGroupedForm()
         .listEditingToolbar(isVisible: !profile.portForwards.isEmpty)
     }
     
@@ -582,27 +598,27 @@ struct NetworkEditView: View {
                 }
             })
         }
-        .formStyle(.grouped)
+        .compatibleGroupedForm()
     }
     
     var proxyCIDREditor: some View {
-        NavigationStack {
+        CompatibleNavigationStack {
             Form {
                 Section("common_text.proxy_cidr") {
-                    LabeledContent("cidr") {
+                    CompatibleLabeledContent("cidr") {
                         IPv4Field(ip: $editingProxyCIDR.cidr, length: $editingProxyCIDR.length)
                     }
                 }
                 Section("common_text.mapped_cidr") {
                     Toggle("common_text.enable", isOn: $editingProxyCIDR.enableMapping)
                     if editingProxyCIDR.enableMapping {
-                        LabeledContent("cidr") {
+                        CompatibleLabeledContent("cidr") {
                             IPv4Field(ip: $editingProxyCIDR.mappedCIDR, length: $editingProxyCIDR.length, disabledLengthEdit: true)
                         }
                     }
                 }
             }
-            .formStyle(.grouped)
+            .compatibleGroupedForm()
             .navigationTitle("common_text.edit_proxy_cidr")
             .adaptiveNavigationBarTitleInline()
             .toolbar {
@@ -652,10 +668,10 @@ struct PeerPublicKeyEditor: View {
     }
 
     var body: some View {
-        NavigationStack {
+        CompatibleNavigationStack {
             Form {
                 Section("initial_node") {
-                    LabeledContent("URL") {
+                    CompatibleLabeledContent("URL") {
                         Text(context.uri)
                             .font(.body.monospaced())
                             .textSelection(.enabled)
@@ -663,17 +679,16 @@ struct PeerPublicKeyEditor: View {
                 }
 
                 Section {
-                    TextField(
+                    CompatibleMultilineTextField(
                         "peer_public_key",
                         text: $publicKey,
-                        prompt: Text("peer_public_key"),
-                        axis: .vertical
+                        prompt: Text("peer_public_key")
                     )
                     .labelsHidden()
                     .font(.body.monospaced())
-                    .lineLimit(2...4)
+                    .compatibleMultilineLimit()
                     .adaptiveNoTextInputAutocapitalization()
-                    .autocorrectionDisabled()
+                    .disableAutocorrection(true)
 
                     if let validationError {
                         Label(validationError, systemImage: "exclamationmark.triangle.fill")
@@ -695,7 +710,7 @@ struct PeerPublicKeyEditor: View {
                     }
                 }
             }
-            .formStyle(.grouped)
+            .compatibleGroupedForm()
             .navigationTitle("set_peer_public_key")
             .adaptiveNavigationBarTitleInline()
             .toolbar {
@@ -734,7 +749,7 @@ struct PeerPublicKeyEditor: View {
 @available(iOS 17.0, macOS 14.0, *)
 #Preview("Network Edit Portrait") {
     @Previewable @State var profile = NetworkProfile()
-    NavigationStack {
+    CompatibleNavigationStack {
         NetworkEditView(profile: $profile)
     }
 }

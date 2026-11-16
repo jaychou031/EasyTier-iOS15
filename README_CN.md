@@ -1,5 +1,7 @@
 # EasyTier iOS/macOS 客户端
 
+> 本分支将源码部署目标降为 iOS 15.0，并调整 GitHub Actions 构建流程。修改与验证状态见 [iOS 15 兼容记录](docs/ios15-support.md)。需要 Actions 编译通过和真机验证后再使用。
+
 [简体中文](README_CN.md) | [English](README.md)
 
 iOS/macOS 版 EasyTier 原生客户端，适用于去中心化虚拟专用网络解决方案。

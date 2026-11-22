@@ -284,6 +284,18 @@ public func loadVPNManagers() async throws -> [NETunnelProviderManager] {
     try await NETunnelProviderManager.loadAllFromPreferences()
 }
 
+public func reloadVPNPreferences(_ manager: NEVPNManager) async throws {
+    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+        manager.loadFromPreferences { error in
+            if let error {
+                continuation.resume(throwing: error)
+            } else {
+                continuation.resume(returning: ())
+            }
+        }
+    }
+}
+
 public func removeVPNPreferences(_ manager: NEVPNManager) async throws {
     try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
         manager.removeFromPreferences { error in
@@ -318,6 +330,8 @@ private func configureManagerForConnection(_ manager: NETunnelProviderManager, l
 public func connectWithManager(_ manager: NETunnelProviderManager, logger: Logger? = nil) async throws {
     configureManagerForConnection(manager, logger: logger)
     try await saveVPNPreferences(manager)
+    // Reacquire the persisted configuration before using its VPN connection.
+    try await reloadVPNPreferences(manager)
     try manager.connection.startVPNTunnel()
 }
 
@@ -328,12 +342,17 @@ public func connectWithManager(_ manager: NETunnelProviderManager, logger: Logge
             completionHandler?(error)
             return
         }
-        do {
-            try manager.connection.startVPNTunnel()
-        } catch {
-            completionHandler?(error)
-            return
+        manager.loadFromPreferences { error in
+            if let error {
+                completionHandler?(error)
+                return
+            }
+            do {
+                try manager.connection.startVPNTunnel()
+                completionHandler?(nil)
+            } catch {
+                completionHandler?(error)
+            }
         }
-        completionHandler?(nil)
     }
 }

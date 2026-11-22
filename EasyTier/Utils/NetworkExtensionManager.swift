@@ -66,6 +66,23 @@ class NetworkExtensionManager: NetworkExtensionManagerProtocol {
     private var observer: Any?
     private var diagnosticAttempt: UUID?
 
+    private func appGroupDiagnostic() -> String {
+        guard let directory = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: APP_GROUP_ID) else {
+            return "主 App 无法取得 App Group 容器"
+        }
+        let probe = directory.appendingPathComponent("connection-probe-\(UUID().uuidString).tmp")
+        defer { try? FileManager.default.removeItem(at: probe) }
+        do {
+            let data = Data("EasyTier connection diagnostic".utf8)
+            try data.write(to: probe, options: .atomic)
+            guard try Data(contentsOf: probe) == data else { return "主 App 共享容器读回不一致" }
+            return "主 App 共享容器读写正常（未证明扩展有相同访问权限）"
+        } catch {
+            let error = error as NSError
+            return "主 App 共享容器读写失败：\(error.domain) / \(error.code)"
+        }
+    }
+
     @MainActor
     private func monitorConnectionStart(_ connection: NEVPNConnection, attempt: UUID) {
         Task { @MainActor [weak self] in
@@ -87,7 +104,13 @@ class NetworkExtensionManager: NetworkExtensionManagerProtocol {
                 let stop = defaults?.object(forKey: "TunnelStopReason")
                     .map { "\($0)" } ?? "未收到停止原因"
                 let error = defaults?.string(forKey: "TunnelLastError") ?? "扩展未返回错误详情"
-                let message = "VPN 启动失败\n状态：\(connection.status.rawValue)\n阶段：\(stage)\n停止原因：\(stop)\n\(error)"
+                let group = self.appGroupDiagnostic()
+                let provider = (self.manager?.protocolConfiguration as? NETunnelProviderProtocol)?.providerBundleIdentifier ?? "无"
+                let embedded = Bundle.main.builtInPlugInsURL?
+                    .appendingPathComponent("EasyTierNetworkExtension.appex")
+                let extensionPresent = embedded.map { FileManager.default.fileExists(atPath: $0.path) } ?? false
+                let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "未知"
+                let message = "VPN 启动失败（构建 \(build)）\n状态：\(connection.status.rawValue)\n扩展 ID：\(provider)\n扩展目录存在：\(extensionPresent)\n\(group)\n阶段：\(stage)\n停止原因：\(stop)\n\(error)"
                 UserDefaults.standard.set(message, forKey: "LastConnectionDiagnostic")
                 NotificationCenter.default.post(name: Notification.Name("\(APP_BUNDLE_ID).connection-diagnostic"),
                                                 object: nil, userInfo: ["message": message])
@@ -297,6 +320,8 @@ class NetworkExtensionManager: NetworkExtensionManagerProtocol {
             throw error
         }
         monitorConnectionStart(manager.connection, attempt: attempt)
+        // Reloading preferences may refresh the connection object.
+        setManager(manager: manager)
         Self.logger.info("connect() started")
         // Immediately sync widget state after initiating connection
         syncWidgetState()

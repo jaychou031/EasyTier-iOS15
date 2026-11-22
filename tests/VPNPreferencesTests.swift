@@ -9,6 +9,13 @@ private final class StubVPNManager: NETunnelProviderManager {
     var failure: NSError?
     var saves = 0
     var removals = 0
+    var reloads = 0
+
+    override func loadFromPreferences(completionHandler: @escaping @Sendable (Error?) -> Void) {
+        reloads += 1
+        let error = failure
+        DispatchQueue.main.async { completionHandler(error) }
+    }
 
     override func saveToPreferences(completionHandler: (@Sendable (Error?) -> Void)?) {
         saves += 1
@@ -30,10 +37,12 @@ struct VPNPreferencesTests {
         let manager = StubVPNManager()
         try await saveVPNPreferences(manager)
         try await removeVPNPreferences(manager)
+        try await reloadVPNPreferences(manager)
         precondition(manager.saves == 1 && manager.removals == 1)
+        precondition(manager.reloads == 1)
 
         manager.failure = NSError(domain: "VPNPreferencesTests", code: 42)
-        for operation in [saveVPNPreferences, removeVPNPreferences] {
+        for operation in [saveVPNPreferences, removeVPNPreferences, reloadVPNPreferences] {
             do {
                 try await operation(manager)
                 fatalError("Expected the callback error to be propagated")
@@ -43,6 +52,7 @@ struct VPNPreferencesTests {
             }
         }
         precondition(manager.saves == 2 && manager.removals == 2)
+        precondition(manager.reloads == 2)
         print("VPN preference delayed callback success/error tests passed")
     }
 }

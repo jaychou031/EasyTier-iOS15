@@ -102,6 +102,8 @@ class NetworkExtensionManager: NetworkExtensionManagerProtocol {
                 let defaults = UserDefaults(suiteName: APP_GROUP_ID)
                 let stage = defaults?.string(forKey: "TunnelStartupStage")
                     ?? "未收到扩展启动记录（也可能是 App Group 共享数据不可用）"
+                let processCreated = defaults?.object(forKey: "TunnelProviderProcessCreated")
+                    .map { "扩展进程已创建：\($0)" } ?? "扩展进程未记录创建时间"
                 let stop = defaults?.object(forKey: "TunnelStopReason")
                     .map { "\($0)" } ?? "未收到停止原因"
                 let error = defaults?.string(forKey: "TunnelLastError") ?? "扩展未返回错误详情"
@@ -113,7 +115,7 @@ class NetworkExtensionManager: NetworkExtensionManagerProtocol {
                     .appendingPathComponent("EasyTierNetworkExtension.appex")
                 let extensionPresent = embedded.map { FileManager.default.fileExists(atPath: $0.path) } ?? false
                 let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "未知"
-                let message = "VPN 启动失败（构建 \(build)）\n状态：\(connection.status.rawValue)\n扩展 ID：\(provider)\n服务器地址：\(server)\n启用状态：\(self.manager?.isEnabled ?? false)\n扩展目录存在：\(extensionPresent)\n\(group)\n阶段：\(stage)\n停止原因：\(stop)\n\(error)"
+                let message = "VPN 启动失败（构建 \(build)）\n状态：\(connection.status.rawValue)\n扩展 ID：\(provider)\n服务器地址：\(server)\n启用状态：\(self.manager?.isEnabled ?? false)\n扩展目录存在：\(extensionPresent)\n\(group)\n\(processCreated)\n阶段：\(stage)\n停止原因：\(stop)\n\(error)"
                 UserDefaults.standard.set(message, forKey: "LastConnectionDiagnostic")
                 NotificationCenter.default.post(name: Notification.Name("\(APP_BUNDLE_ID).connection-diagnostic"),
                                                 object: nil, userInfo: ["message": message])

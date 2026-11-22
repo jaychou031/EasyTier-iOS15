@@ -72,6 +72,14 @@ private struct TunnelSession {
 }
 
 class PacketTunnelProvider: NEPacketTunnelProvider {
+    override init() {
+        super.init()
+        let defaults = UserDefaults(suiteName: APP_GROUP_ID)
+        defaults?.set(Date().timeIntervalSince1970, forKey: "TunnelProviderProcessCreated")
+        defaults?.synchronize()
+        logger.warning("PacketTunnelProvider initialized")
+    }
+
     // Hold a weak reference to the current provider for C callback bridging
     private static let currentLock = NSLock()
     private static weak var currentProvider: PacketTunnelProvider?

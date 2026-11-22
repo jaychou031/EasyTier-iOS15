@@ -49,7 +49,9 @@ function verify(appPath) {
     if (tunnelInfo.NSExtension?.NSExtensionPrincipalClass !== 'EasyTierNetworkExtension.PacketTunnelProvider') {
         throw Error(`unexpected Packet Tunnel principal class ${tunnelInfo.NSExtension?.NSExtensionPrincipalClass}`);
     }
-    if ('NEMachServiceName' in tunnelInfo) throw Error('Packet Tunnel Info.plist must not contain NEMachServiceName');
+    if (tunnelInfo.NEMachServiceName !== undefined && tunnelInfo.NEMachServiceName !== 'cn.easytier.tunnel' && tunnelInfo.NEMachServiceName !== '$(PRODUCT_BUNDLE_IDENTIFIER)') {
+        throw Error(`unexpected NEMachServiceName ${tunnelInfo.NEMachServiceName}`);
+    }
     let bundles = 0;
     let binaries = 0;
     function visit(dir) {

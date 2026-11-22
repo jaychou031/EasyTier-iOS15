@@ -39,6 +39,17 @@ function verify(appPath) {
     for (const required of ['Info.plist', 'PlugIns/EasyTierNetworkExtension.appex/Info.plist', 'PlugIns/EasyTierWidgetExtension.appex/Info.plist']) {
         if (!fs.existsSync(path.join(appPath, required))) throw Error(`Missing ${required}`);
     }
+    const appInfo = JSON.parse(execFileSync('plutil', ['-convert', 'json', '-o', '-', path.join(appPath, 'Info.plist')], { encoding: 'utf8' }));
+    const tunnelInfo = JSON.parse(execFileSync('plutil', ['-convert', 'json', '-o', '-', path.join(appPath, 'PlugIns/EasyTierNetworkExtension.appex/Info.plist')], { encoding: 'utf8' }));
+    if (appInfo.CFBundleIdentifier !== 'cn.easytier') throw Error(`unexpected app bundle identifier ${appInfo.CFBundleIdentifier}`);
+    if (tunnelInfo.CFBundleIdentifier !== 'cn.easytier.tunnel') throw Error(`unexpected tunnel bundle identifier ${tunnelInfo.CFBundleIdentifier}`);
+    if (tunnelInfo.NSExtension?.NSExtensionPointIdentifier !== 'com.apple.networkextension.packet-tunnel') {
+        throw Error('Packet Tunnel extension point is missing or incorrect');
+    }
+    if (tunnelInfo.NSExtension?.NSExtensionPrincipalClass !== 'EasyTierNetworkExtension.PacketTunnelProvider') {
+        throw Error(`unexpected Packet Tunnel principal class ${tunnelInfo.NSExtension?.NSExtensionPrincipalClass}`);
+    }
+    if ('NEMachServiceName' in tunnelInfo) throw Error('Packet Tunnel Info.plist must not contain NEMachServiceName');
     let bundles = 0;
     let binaries = 0;
     function visit(dir) {

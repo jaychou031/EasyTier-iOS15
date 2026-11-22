@@ -171,7 +171,16 @@ jobs:
             --entitlements "${APP_ENTITLEMENTS}" \
             "${APP_PATH}"
 
+          # Verify each nested bundle independently before verifying the app.
+          # This catches a provider whose signature or entitlements were lost
+          # while the containing application was signed.
+          codesign --verify --strict "${WIDGET_PATH}"
+          codesign --verify --strict "${TUNNEL_PATH}"
           codesign --verify --deep --strict "${APP_PATH}"
+          codesign --display --entitlements :- "${TUNNEL_PATH}"
+          codesign --display --entitlements :- "${APP_PATH}"
+          /usr/libexec/PlistBuddy -c 'Print :NSExtension:NSExtensionPointIdentifier' "${TUNNEL_PATH}/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Print :NSExtension:NSExtensionPrincipalClass' "${TUNNEL_PATH}/Info.plist"
 
       - name: Package TrollStore IPA
         shell: bash
